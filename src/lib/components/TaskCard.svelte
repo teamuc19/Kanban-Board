@@ -2,7 +2,7 @@
   export let task;
   export let onDragStart;
   export let laneIndex;
-  export let onRemove; // NEW
+  export let onRemove;
   export let role = "listitem";
 </script>
 
@@ -17,7 +17,6 @@
   <div class="flex items-start justify-between gap-3">
     <h3 class="font-semibold text-slate-800 dark:text-slate-100 leading-tight">{task.title}</h3>
 
-    <!-- NEW: Delete Button -->
     <button
       type="button"
       class="shrink-0 rounded-lg px-2 py-1 text-[12px] text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
