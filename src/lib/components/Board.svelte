@@ -11,6 +11,9 @@
   let isBrowser = false;
   let unsubscribe;
 
+  // Filtertext
+  let query = "";
+
   onMount(() => {
     isBrowser = true;
 
@@ -96,7 +99,16 @@
       <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">
         Kanban <span class="text-sky-400">Board</span>
       </h1>
-      <div class="flex gap-3">
+
+      <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+        <div class="flex-1 md:flex-initial">
+          <input
+            class="w-full md:w-[320px] rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-slate-100 placeholder:text-slate-300/60"
+            placeholder="Filter tasks…"
+            bind:value={query}
+          />
+        </div>
+
         <button
           on:click={() => (showDialog = true)}
           class="inline-flex items-center gap-2 rounded-xl px-4 py-2 font-medium bg-sky-600 hover:bg-sky-500 active:scale-[.98] text-white shadow-md shadow-sky-900/30"
@@ -113,6 +125,7 @@
         <Lane
           {lane}
           laneIndex={i}
+          filter={query}
           onDrop={drop}
           onDragStart={dragStart}
           onRemove={removeTask}
