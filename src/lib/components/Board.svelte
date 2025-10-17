@@ -4,6 +4,8 @@
   import { lanes } from "$lib/stores";
   import { onMount } from "svelte";
 
+  const STORAGE_KEY = "kanbanData";
+
   let showDialog = false;
   let newTask = { title: "", desc: "", due: "" };
   let isBrowser = false;
@@ -13,14 +15,14 @@
     isBrowser = true;
 
     try {
-      const saved = localStorage.getItem("kanbanData");
+      const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) lanes.set(JSON.parse(saved));
     } catch {}
 
     unsubscribe = lanes.subscribe((value) => {
       if (!isBrowser) return;
       try {
-        localStorage.setItem("kanbanData", JSON.stringify(value));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
       } catch {}
     });
 
@@ -70,6 +72,21 @@
     });
   }
 
+  function archiveTask(taskId, fromLaneIndex) {
+    lanes.update((all) => {
+      const fromTasks = all[fromLaneIndex].tasks;
+      const idx = fromTasks.findIndex(t => t.id === taskId);
+      if (idx === -1) return all.slice();
+
+      const [task] = fromTasks.splice(idx, 1);
+      const archiveLaneIndex = all.findIndex(l => l.title === "Archiv");
+      if (archiveLaneIndex !== -1) {
+        all[archiveLaneIndex].tasks.push({ ...task, archivedAt: new Date().toISOString() });
+      }
+      return all.slice();
+    });
+  }
+
   function closeDialog() { showDialog = false; }
 </script>
 
@@ -93,7 +110,14 @@
   <main class="max-w-7xl mx-auto px-4 pb-12">
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {#each $lanes as lane, i}
-        <Lane {lane} laneIndex={i} onDrop={drop} onDragStart={dragStart} onRemove={removeTask} />
+        <Lane
+          {lane}
+          laneIndex={i}
+          onDrop={drop}
+          onDragStart={dragStart}
+          onRemove={removeTask}
+          on:archive={(e) => archiveTask(e.detail.taskId, e.detail.fromLaneIndex)}
+        />
       {/each}
     </section>
   </main>

@@ -6,3 +6,4 @@ export const lanes = writable([
   { title: "Done",   color: "bg-emerald-50 dark:bg-emerald-900/20",  tasks: [] },
   { title: "Archiv", color: "bg-indigo-50 dark:bg-indigo-900/20",    tasks: [] }
 ]);
+  
