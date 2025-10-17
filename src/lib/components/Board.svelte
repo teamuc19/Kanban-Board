@@ -11,17 +11,31 @@
   let isBrowser = false;
   let unsubscribe;
 
-  // Filtertext
-  let query = "";
-
   onMount(() => {
     isBrowser = true;
 
+    // Laden
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) lanes.set(JSON.parse(saved));
     } catch {}
 
+    // Alte/abweichende Titel ins gewünschte Set heben (DO/DOING/DONE/ARCHIV)
+    lanes.update((all) => {
+      const mapTitle = (t) => {
+        if (!t) return t;
+        const up = String(t).toUpperCase();
+        if (up === "DO" || up === "BACKLOG") return "DO";
+        if (up === "DOING" || up === "IN PROGRESS") return "DOING";
+        if (up === "DONE" || up === "REVIEW" || up === "REVIEWED") return "DONE";
+        if (up === "ARCHIV" || up === "ARCHIVE" || up === "ARCHIVED") return "ARCHIV";
+        return up;
+      };
+      all.forEach((lane) => (lane.title = mapTitle(lane.title)));
+      return all.slice();
+    });
+
+    // Speichern
     unsubscribe = lanes.subscribe((value) => {
       if (!isBrowser) return;
       try {
@@ -29,6 +43,7 @@
       } catch {}
     });
 
+    // Notifications
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -40,7 +55,7 @@
     if (!newTask.title.trim()) { alert("Title required!"); return; }
     lanes.update((all) => {
       const task = { ...newTask, id: Date.now(), created: new Date().toISOString() };
-      all[0].tasks.push(task);
+      all[0].tasks.push(task); // in "DO"
       return all.slice();
     });
     newTask = { title: "", desc: "", due: "" };
@@ -61,7 +76,13 @@
       all[from].tasks = all[from].tasks.filter((t) => t.id !== task.id);
       all[toIndex].tasks.push(task);
 
-      if (isBrowser && all[toIndex].title === "Done" && "Notification" in window && Notification.permission === "granted") {
+      // ACHTUNG: auf "DONE" prüfen (Großschreibung)
+      if (
+        isBrowser &&
+        all[toIndex].title === "DONE" &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
         new Notification("✅ Task Done", { body: task.title });
       }
       return all.slice();
@@ -75,21 +96,6 @@
     });
   }
 
-  function archiveTask(taskId, fromLaneIndex) {
-    lanes.update((all) => {
-      const fromTasks = all[fromLaneIndex].tasks;
-      const idx = fromTasks.findIndex(t => t.id === taskId);
-      if (idx === -1) return all.slice();
-
-      const [task] = fromTasks.splice(idx, 1);
-      const archiveLaneIndex = all.findIndex(l => l.title === "Archiv");
-      if (archiveLaneIndex !== -1) {
-        all[archiveLaneIndex].tasks.push({ ...task, archivedAt: new Date().toISOString() });
-      }
-      return all.slice();
-    });
-  }
-
   function closeDialog() { showDialog = false; }
 </script>
 
@@ -99,16 +105,7 @@
       <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">
         Kanban <span class="text-sky-400">Board</span>
       </h1>
-
-      <div class="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
-        <div class="flex-1 md:flex-initial">
-          <input
-            class="w-full md:w-[320px] rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-slate-100 placeholder:text-slate-300/60"
-            placeholder="Filter tasks…"
-            bind:value={query}
-          />
-        </div>
-
+      <div class="flex gap-3">
         <button
           on:click={() => (showDialog = true)}
           class="inline-flex items-center gap-2 rounded-xl px-4 py-2 font-medium bg-sky-600 hover:bg-sky-500 active:scale-[.98] text-white shadow-md shadow-sky-900/30"
@@ -122,15 +119,7 @@
   <main class="max-w-7xl mx-auto px-4 pb-12">
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       {#each $lanes as lane, i}
-        <Lane
-          {lane}
-          laneIndex={i}
-          filter={query}
-          onDrop={drop}
-          onDragStart={dragStart}
-          onRemove={removeTask}
-          on:archive={(e) => archiveTask(e.detail.taskId, e.detail.fromLaneIndex)}
-        />
+        <Lane {lane} laneIndex={i} onDrop={drop} onDragStart={dragStart} onRemove={removeTask} />
       {/each}
     </section>
   </main>

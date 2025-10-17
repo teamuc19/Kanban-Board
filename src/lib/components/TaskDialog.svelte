@@ -1,21 +1,8 @@
 <script>
-  import { onMount } from "svelte";
   export let showDialog;
   export let newTask;
   export let addTask;
   export let closeDialog;
-
-  let titleEl;
-
-  onMount(() => {
-    // ESC zum Schließen, wenn Dialog offen
-    const onKey = (e) => {
-      if (!showDialog) return;
-      if (e.key === "Escape") closeDialog();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
 </script>
 
 {#if showDialog}
@@ -33,8 +20,6 @@
         <label class="block">
           <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Title *</span>
           <input
-            bind:this={titleEl}
-            autofocus
             class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-transparent px-3 py-2 text-slate-800 dark:text-slate-100"
             placeholder="Title"
             bind:value={newTask.title}
@@ -65,7 +50,7 @@
       <div class="px-5 pb-5 pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
         <button type="button" on:click={closeDialog}
                 class="rounded-xl px-4 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
-          Cancel (Esc)
+          Cancel
         </button>
         <button type="submit"
                 class="rounded-xl px-4 py-2 font-medium bg-sky-600 hover:bg-sky-500 active:scale-[.98] text-white shadow-md shadow-sky-900/30">
