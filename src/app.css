@@ -1,3 +1,6 @@
-@import 'tailwindcss';
-@plugin '@tailwindcss/forms';
-@plugin '@tailwindcss/typography';
+/* stylelint-disable at-rule-no-unknown */
+@import "tailwindcss";
+/* Plugins */
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+/* stylelint-enable at-rule-no-unknown */
