@@ -34,25 +34,46 @@ Priority: ${task.priority ?? "-"}`;
     }
   }
 
-  // --- CSV (single) ---
-  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  function downloadCSV() {
-    const header = "id,title,desc,created,due,points,priority,laneIndex\n";
-    const row = [
-      task.id ?? "",
-      task.title ?? "",
-      task.desc ?? "",
-      isValid(createdAt) ? format(createdAt, "yyyy-MM-dd") : "",
-      isValid(dueAt) ? format(dueAt, "yyyy-MM-dd") : (task.due ?? ""),
-      task.points ?? "",
-      task.priority ?? "",
-      laneIndex ?? ""
-    ].map(esc).join(",");
-    const blob = new Blob([header + row], { type: "text/csv;charset=utf-8;" });
+  // --- ICS (single all-day event) ---
+  function downloadICS() {
+    const startDate = isValid(dueAt) ? dueAt : new Date();
+    const uid = `${task.id || Date.now()}@kanban.local`;
+    const dtstamp = format(new Date(), "yyyyMMdd'T'HHmmss'Z'"); // UTC stamp
+
+    // Ganztag: DTSTART/DTEND nur als Datum; DTEND = Folgetag
+    const DTSTART = format(startDate, "yyyyMMdd");
+    const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+    const DTEND = format(endDate, "yyyyMMdd");
+
+    const lines = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//kanban//svelte//DE",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:${uid}`,
+      `DTSTAMP:${dtstamp}`,
+      `DTSTART;VALUE=DATE:${DTSTART}`,
+      `DTEND;VALUE=DATE:${DTEND}`,
+      `SUMMARY:${escapeICS(task?.title || "Task")}`,
+      `DESCRIPTION:${escapeICS(task?.desc || "")}`,
+      "END:VEVENT",
+      "END:VCALENDAR"
+    ].join("\r\n");
+
+    triggerDownload(new Blob([lines], { type: "text/calendar;charset=utf-8;" }),
+      fileSafe(task?.title || "task") + ".ics");
+  }
+
+  const escapeICS = (s) =>
+    String(s).replace(/([,;])/g, "\\$1").replace(/\r?\n/g, "\\n");
+  const fileSafe = (s) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "task";
+  function triggerDownload(blob, filename) {
     const a = document.createElement("a");
-    const safeName = (task.title || "task").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     a.href = URL.createObjectURL(blob);
-    a.download = `${safeName || "task"}.csv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
@@ -89,10 +110,10 @@ Priority: ${task.priority ?? "-"}`;
       <button
         type="button"
         class="text-xs px-2 py-1 rounded border border-black/10 hover:bg-white/60"
-        on:click={downloadCSV}
-        title="CSV"
-        aria-label="Download CSV"
-      >CSV</button>
+        on:click={downloadICS}
+        title="ICS"
+        aria-label="Download ICS"
+      >ICS</button>
 
       <button
         type="button"

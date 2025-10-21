@@ -3,6 +3,8 @@
   import TaskDialog from "./TaskDialog.svelte";
   import { lanes } from "$lib/stores";
   import { onMount } from "svelte";
+  import { get } from "svelte/store";
+  import { format } from "date-fns";
 
   const STORAGE_KEY = "kanbanData";
 
@@ -17,19 +19,21 @@
   onMount(() => {
     isBrowser = true;
 
+    // localStorage -> Store
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) lanes.set(JSON.parse(saved));
     } catch {}
 
-    lanes.update((all) => {
+    // Lanes normalisieren (DO, DOING, DONE, ARCHIV)
+    lanes.update((all = []) => {
       const ORDER = ["DO", "DOING", "DONE", "ARCHIV"];
       const mapTitle = (t) => {
         const up = String(t || "").toUpperCase().trim();
         if (up === "BACKLOG") return "DO";
         if (up === "IN PROGRESS") return "DOING";
         if (up === "REVIEW" || up === "REVIEWED" || up === "ARCHIVE" || up === "ARCHIVED") return "ARCHIV";
-        if (["DO","DOING","DONE","ARCHIV"].includes(up)) return up;
+        if (ORDER.includes(up)) return up;
         return up || "DO";
       };
       const normalized = all.map(l => ({ title: mapTitle(l.title), color: "bg-white", tasks: l.tasks || [] }));
@@ -43,20 +47,23 @@
       return ORDER.map(k => byTitle.get(k));
     });
 
+    // Store -> localStorage
     unsubscribe = lanes.subscribe((v) => {
       if (!isBrowser) return;
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(v)); } catch {}
     });
 
-    if ("Notification" in window && Notification.permission !== "granted") {
-      Notification.requestPermission();
-    }
-
+    // Geo-IP
     fetch("https://ipapi.co/json/").then(r => r.ok ? r.json() : null)
       .then(data => userCountry = data?.country_name || "Unbekannt")
       .catch(() => userCountry = "Unbekannt");
 
-    // SW nur in Prod
+    // Notifications: Permission holen
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    // PWA-SW nur in Prod
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }
@@ -66,8 +73,13 @@
   function addTask() {
     if (!newTask.title.trim()) { alert("Title required!"); return; }
     lanes.update((all) => {
-      const task = { ...newTask, id: Date.now(), created: new Date().toISOString(), points: newTask.points === "" ? null : Number(newTask.points) };
-      all[0].tasks.push(task);
+      const task = {
+        ...newTask,
+        id: Date.now(),
+        created: new Date().toISOString(),
+        points: newTask.points === "" ? null : Number(newTask.points)
+      };
+      all[0].tasks.push(task); // in "DO"
       return all.slice();
     });
     newTask = { title: "", desc: "", due: "", points: "", priority: "Medium" };
@@ -91,9 +103,42 @@
   const removeTask = (taskId, fromLaneIndex) =>
     lanes.update((all) => { all[fromLaneIndex].tasks = all[fromLaneIndex].tasks.filter(t => t.id !== taskId); return all.slice(); });
   const closeDialog = () => (showDialog = false);
+
+  // ---------- CSV EXPORT: ALLE ITEMS ----------
+  function exportAllCSV() {
+    const data = get(lanes) || [];
+    const header = "lane,title,desc,created,due,points,priority,id\n";
+    const rows = [];
+
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+
+    for (const lane of data) {
+      for (const t of lane.tasks || []) {
+        rows.push([
+          lane.title,
+          t.title ?? "",
+          t.desc ?? "",
+          t.created ? format(new Date(t.created), "yyyy-MM-dd") : "",
+          t.due ?? "",
+          t.points ?? "",
+          t.priority ?? "",
+          t.id ?? ""
+        ].map(esc).join(","));
+      }
+    }
+
+    const csv = header + rows.join("\n") + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "kanban_export.csv";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
 </script>
 
-<!-- Grundfarbe: #90D5FF -->
 <div class="min-h-screen overflow-x-hidden" style="background:#90D5FF;">
   <header class="max-w-6xl mx-auto px-4 pt-8 pb-4">
     <div class="flex flex-col items-center gap-4">
@@ -110,6 +155,13 @@
           class="rounded bg-[#1b5673] text-white px-4 py-2 hover:brightness-95 active:translate-y-px"
         >
           New Task
+        </button>
+        <button
+          on:click={exportAllCSV}
+          class="rounded border border-black/20 bg-white text-[#1b5673] px-4 py-2 hover:bg-white/80"
+          title="Export all items as CSV"
+        >
+          Export All CSV
         </button>
       </div>
     </div>
