@@ -1,5 +1,10 @@
-const CACHE = "kanban-cache-v1";
-const ASSETS = ["/", "/manifest.webmanifest"];
+// Deaktiviert Caching auf localhost (Dev), SW aktiv nur in Prod (Board.svelte)
+if (self.location.hostname === "localhost") {
+  self.addEventListener("fetch", () => {});
+}
+
+const CACHE = "kanban-cache-v2";
+const ASSETS = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-256.png", "/icons/icon-512.png", "/favicon.svg", "/build/bundle.css", "/build/bundle.js"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -13,6 +18,13 @@ self.addEventListener("activate", (e) => {
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
+});
+
+// Notify clients that a new version is active (optional)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (e) => {

@@ -1,162 +1,130 @@
 <script>
-  // KEIN date-fns mehr – alles mit reinem JS
-
   export let task;
-  export let onDragStart;
   export let laneIndex;
+  export let onDragStart;
   export let onRemove;
-  export let role = "listitem";
 
-  // yyyy-MM-dd Formatierung
-  function fmt(iso) {
-    if (!iso) return "—";
-    try {
-      const d = new Date(String(iso));
-      if (isNaN(d)) return String(iso);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
-    } catch {
-      return String(iso);
+  const handleDragStart = (e) => onDragStart?.(e, task, laneIndex);
+  const remove = () => onRemove?.(task.id, laneIndex);
+
+  function shareTask() {
+    const text =
+`Task: ${task.title ?? ""}
+Description: ${task.desc ?? ""}
+Due: ${task.due ?? "-"}
+Points: ${task.points ?? "-"}
+Priority: ${task.priority ?? "-"}`;
+    if (navigator.share) {
+      navigator.share({ title: task.title || "Task", text }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(text);
+      alert("Task-Details wurden in die Zwischenablage kopiert.");
     }
   }
 
-  // Start-of-day helper
-  function startOfDay(d) {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  }
-
-  // Overdue?
-  $: overdue = (() => {
-    if (!task?.due) return false;
-    try {
-      const due = new Date(String(task.due));
-      if (isNaN(due)) return false;
-      const today = new Date();
-      return startOfDay(due) < startOfDay(today);
-    } catch {
-      return false;
-    }
-  })();
-
-  // ICS-Export
-  function exportICS(t) {
-    const uid = `${t.id}@kanban.local`;
-    const dtstamp = new Date().toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-    const due = t.due ? t.due.replace(/[-:]/g, "").split("T")[0] : null;
-
-    const ics = [
-      "BEGIN:VCALENDAR",
-      "VERSION:2.0",
-      "PRODID:-//Kanban Board//EN",
-      "CALSCALE:GREGORIAN",
-      "BEGIN:VEVENT",
-      `UID:${uid}`,
-      `DTSTAMP:${dtstamp}`,
-      t.title ? `SUMMARY:${t.title.replace(/\n/g, " ")}` : "SUMMARY:Task",
-      t.desc ? `DESCRIPTION:${t.desc.replace(/\n/g, " ")}` : "",
-      due ? `DUE;VALUE=DATE:${due}` : "",
-      "END:VEVENT",
-      "END:VCALENDAR"
-    ].filter(Boolean).join("\r\n");
-
-    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  function downloadCSV() {
+    const header = "id,title,desc,created,due,points,priority,laneIndex\n";
+    const row = [
+      task.id ?? "", task.title ?? "", task.desc ?? "", task.created ?? "",
+      task.due ?? "", task.points ?? "", task.priority ?? "", laneIndex ?? ""
+    ].map(esc).join(",");
+    const blob = new Blob([header + row], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
-    a.href = url;
-    a.download = (t.title || "task") + ".ics";
+    const safeName = (task.title || "task").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${safeName || "task"}.csv`;
     document.body.appendChild(a);
     a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
   }
 
-  // Web Share API
-  async function shareTask(t) {
-    const text = [t.title, t.desc && `— ${t.desc}`, t.due && `(Due: ${fmt(t.due)})`]
-      .filter(Boolean).join(" ");
-    if (navigator.share) {
-      try { await navigator.share({ title: t.title, text }); }
-      catch { /* abgebrochen */ }
-    } else {
-      try {
-        await navigator.clipboard.writeText(text);
-        alert("Info kopiert (Web Share nicht verfügbar).");
-      } catch {
-        alert("Web Share/Clipboard nicht verfügbar.");
-      }
-    }
+  function onKeydown(e) {
+    if (e.key === "Enter" || e.key === " ") e.preventDefault();
   }
+
+  // Hilfsfunktionen für Anzeige
+  const createdDate = () =>
+    (task.created ? new Date(task.created) : new Date())
+      .toISOString().slice(0,10);
 </script>
 
-<article
-  {role}
+<div
+  class="rounded border border-orange-200 bg-orange-50 p-3 shadow-sm cursor-move max-w-full overflow-hidden"
   draggable="true"
-  on:dragstart={(e) => onDragStart(e, task, laneIndex)}
-  aria-label={task.title}
-  class="group bg-white/95 dark:bg-slate-900/90 border border-slate-200/60 dark:border-slate-700/40
-         rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+  on:dragstart={handleDragStart}
+  role="button"
+  tabindex="0"
+  aria-label={`Drag task: ${task?.title ?? "task"}`}
+  on:keydown={onKeydown}
 >
-  <div class="flex items-start justify-between gap-3">
-    <div class="flex items-center gap-2">
-      <h3 class="font-semibold text-slate-800 dark:text-slate-100 leading-tight">{task.title}</h3>
-      {#if overdue}
-        <span class="inline-flex items-center rounded-md bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200 px-2 py-[2px] text-[10px] font-semibold">
-          OVERDUE
-        </span>
-      {/if}
-    </div>
+  <!-- Kopf: Titel + Aktionen -->
+  <div class="grid grid-cols-1 md:[grid-template-columns:minmax(0,1fr)_auto] gap-2 items-start">
+    <h3 class="font-medium text-slate-800 min-w-0 break-words" title={task.title}>
+      {task.title}
+    </h3>
 
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1 justify-start md:justify-end shrink-0 flex-wrap whitespace-nowrap">
       <button
         type="button"
-        class="shrink-0 rounded-lg px-2 py-1 text-[12px] text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-900/20"
-        aria-label="Share task"
+        class="text-xs px-2 py-1 rounded border border-black/10 hover:bg-white/60"
+        on:click={shareTask}
         title="Share"
-        on:click={() => shareTask(task)}
-      >⤴️</button>
+        aria-label="Share task"
+      >Share</button>
+
       <button
         type="button"
-        class="shrink-0 rounded-lg px-2 py-1 text-[12px] text-emerald-700 hover:bg-emerald-50 dark:hover=g-emerald-900/20"
-        aria-label="Export as ICS"
-        title="Export .ics"
-        on:click={() => exportICS(task)}
-      >📅</button>
+        class="text-xs px-2 py-1 rounded border border-black/10 hover:bg-white/60"
+        on:click={downloadCSV}
+        title="CSV"
+        aria-label="Download CSV"
+      >CSV</button>
+
       <button
         type="button"
-        class="shrink-0 rounded-lg px-2 py-1 text-[12px] text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+        class="text-xs px-2 py-1 rounded border border-black/10 hover:bg-white/60"
+        on:click={remove}
+        title="Delete"
         aria-label="Delete task"
-        on:click={() => onRemove(task.id, laneIndex)}
-      >🗑️</button>
+      >Delete</button>
     </div>
   </div>
 
-  <!-- Tabelle mit allen Eigenschaften -->
-  <div class="mt-2 overflow-hidden rounded-lg border border-slate-200/70 dark:border-slate-700/50">
-    <table class="w-full text-[12px]">
-      <tbody class="divide-y divide-slate-200/70 dark:divide-slate-700/50">
-        <tr>
-          <th class="text-left px-2 py-1 bg-slate-50 dark:bg-slate-800/60 w-28">Description</th>
-          <td class="px-2 py-1 text-slate-700 dark:text-slate-200">{task.desc || "—"}</td>
-        </tr>
-        <tr>
-          <th class="text-left px-2 py-1 bg-slate-50 dark:bg-slate-800/60">Creation-Date</th>
-          <td class="px-2 py-1">{fmt(task.created)}</td>
-        </tr>
-        <tr>
-          <th class="text-left px-2 py-1 bg-slate-50 dark:bg-slate-800/60">Due-Date</th>
-          <td class="px-2 py-1">{fmt(task.due)}</td>
-        </tr>
-        <tr>
-          <th class="text-left px-2 py-1 bg-slate-50 dark:bg-slate-800/60">Story Points</th>
-          <td class="px-2 py-1">{task.points ?? "—"}</td>
-        </tr>
-        <tr>
-          <th class="text-left px-2 py-1 bg-slate-50 dark:bg-slate-800/60">Priority</th>
-          <td class="px-2 py-1">{task.priority || "—"}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</article>
+  <!-- Beschreibung -->
+  {#if task.desc}
+    <p class="mt-2 text-[13px] text-slate-700 break-words">{task.desc}</p>
+  {/if}
+
+  <!-- Divider -->
+  <div class="my-3 h-px bg-orange-200/70"></div>
+
+  <!-- Eigenschaften: echte Liste, klar strukturiert -->
+  <ul class="space-y-1.5 text-[13px]">
+    <li class="flex items-baseline justify-between gap-3">
+      <span class="text-slate-600">Creation-Date</span>
+      <span class="font-medium text-slate-800">{createdDate()}</span>
+    </li>
+
+    {#if task.due}
+      <li class="flex items-baseline justify-between gap-3">
+        <span class="text-slate-600">Due-Date</span>
+        <span class="font-medium text-slate-800">{task.due}</span>
+      </li>
+    {/if}
+
+    {#if task.points != null}
+      <li class="flex items-baseline justify-between gap-3">
+        <span class="text-slate-600">Story Points</span>
+        <span class="font-medium text-slate-800">{task.points}</span>
+      </li>
+    {/if}
+
+    {#if task.priority}
+      <li class="flex items-baseline justify-between gap-3">
+        <span class="text-slate-600">Priority</span>
+        <span class="font-medium text-slate-800">{task.priority}</span>
+      </li>
+    {/if}
+  </ul>
+</div>
