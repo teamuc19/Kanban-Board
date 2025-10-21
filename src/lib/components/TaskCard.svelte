@@ -1,4 +1,7 @@
 <script>
+  import { format, parseISO, isValid, formatDistanceToNow } from "date-fns";
+  import { de } from "date-fns/locale";
+
   export let task;
   export let laneIndex;
   export let onDragStart;
@@ -7,11 +10,20 @@
   const handleDragStart = (e) => onDragStart?.(e, task, laneIndex);
   const remove = () => onRemove?.(task.id, laneIndex);
 
+  // --- Helpers: date-fns ---
+  const toDate = (v) => (typeof v === "string" ? parseISO(v) : (v ? new Date(v) : new Date()));
+  const fmtAbs = (d, pat = "dd.MM.yyyy") => (isValid(d) ? format(d, pat, { locale: de }) : "");
+  const fmtRel = (d) => (isValid(d) ? formatDistanceToNow(d, { addSuffix: true, locale: de }) : "");
+
+  const createdAt = toDate(task?.created || new Date());
+  const dueAt = task?.due ? toDate(task.due) : null;
+
+  // --- Share ---
   function shareTask() {
     const text =
 `Task: ${task.title ?? ""}
 Description: ${task.desc ?? ""}
-Due: ${task.due ?? "-"}
+Due: ${dueAt ? fmtAbs(dueAt) : "-"}
 Points: ${task.points ?? "-"}
 Priority: ${task.priority ?? "-"}`;
     if (navigator.share) {
@@ -22,12 +34,19 @@ Priority: ${task.priority ?? "-"}`;
     }
   }
 
+  // --- CSV (single) ---
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   function downloadCSV() {
     const header = "id,title,desc,created,due,points,priority,laneIndex\n";
     const row = [
-      task.id ?? "", task.title ?? "", task.desc ?? "", task.created ?? "",
-      task.due ?? "", task.points ?? "", task.priority ?? "", laneIndex ?? ""
+      task.id ?? "",
+      task.title ?? "",
+      task.desc ?? "",
+      isValid(createdAt) ? format(createdAt, "yyyy-MM-dd") : "",
+      isValid(dueAt) ? format(dueAt, "yyyy-MM-dd") : (task.due ?? ""),
+      task.points ?? "",
+      task.priority ?? "",
+      laneIndex ?? ""
     ].map(esc).join(",");
     const blob = new Blob([header + row], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
@@ -39,14 +58,8 @@ Priority: ${task.priority ?? "-"}`;
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
   }
 
-  function onKeydown(e) {
-    if (e.key === "Enter" || e.key === " ") e.preventDefault();
-  }
-
-  // Hilfsfunktionen für Anzeige
-  const createdDate = () =>
-    (task.created ? new Date(task.created) : new Date())
-      .toISOString().slice(0,10);
+  // A11y: Rolle + Tastatur
+  function onKeydown(e) { if (e.key === "Enter" || e.key === " ") e.preventDefault(); }
 </script>
 
 <div
@@ -99,17 +112,25 @@ Priority: ${task.priority ?? "-"}`;
   <!-- Divider -->
   <div class="my-3 h-px bg-orange-200/70"></div>
 
-  <!-- Eigenschaften: echte Liste, klar strukturiert -->
+  <!-- Eigenschaften: Liste mit date-fns-Formatierung -->
   <ul class="space-y-1.5 text-[13px]">
     <li class="flex items-baseline justify-between gap-3">
       <span class="text-slate-600">Creation-Date</span>
-      <span class="font-medium text-slate-800">{createdDate()}</span>
+      <span class="font-medium text-slate-800" title={fmtRel(createdAt)}>
+        {fmtAbs(createdAt)} <span class="text-slate-500">({fmtRel(createdAt)})</span>
+      </span>
     </li>
 
-    {#if task.due}
+    {#if dueAt}
       <li class="flex items-baseline justify-between gap-3">
         <span class="text-slate-600">Due-Date</span>
-        <span class="font-medium text-slate-800">{task.due}</span>
+        <span class="font-medium text-slate-800" title={fmtRel(dueAt)}>
+          {#if isValid(dueAt)}
+            {fmtAbs(dueAt)} <span class="text-slate-500">({fmtRel(dueAt)})</span>
+          {:else}
+            {task.due}
+          {/if}
+        </span>
       </li>
     {/if}
 
