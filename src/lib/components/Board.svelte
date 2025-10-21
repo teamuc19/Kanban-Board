@@ -139,35 +139,41 @@
   }
 </script>
 
-<div class="min-h-screen overflow-x-hidden" style="background:#90D5FF;">
+<!-- sanfter Verlauf statt Vollfläche -->
+<div class="min-h-screen overflow-x-hidden bg-gradient-to-b from-[#9edcff] to-[#e7f6ff]">
   <header class="max-w-6xl mx-auto px-4 pt-8 pb-4">
     <div class="flex flex-col items-center gap-4">
-      <h1 class="text-2xl md:text-3xl font-semibold text-[#1b5673]">Kanban Board</h1>
+      <h1 class="text-2xl md:text-3xl font-semibold text-[#1b5673] tracking-tight">Kanban Board</h1>
 
-      <div class="flex w-full max-w-xl gap-2">
-        <input
-          class="flex-1 rounded border border-black/10 bg-white px-3 py-2 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#1b5673]/50"
-          placeholder="Filter tasks…"
-          bind:value={query}
-        />
-        <button
-          on:click={() => (showDialog = true)}
-          class="rounded bg-[#1b5673] text-white px-4 py-2 hover:brightness-95 active:translate-y-px"
-        >
-          New Task
-        </button>
-        <button
-          on:click={exportAllCSV}
-          class="rounded border border-black/20 bg-white text-[#1b5673] px-4 py-2 hover:bg-white/80"
-          title="Export all items as CSV"
-        >
-          Export All CSV
-        </button>
+      <!-- elegante Toolbar-Card -->
+      <div class="w-full max-w-2xl rounded-2xl border border-black/10 bg-white/80 backdrop-blur px-3 py-2 shadow-sm">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <input
+            class="flex-1 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-4 focus:ring-[#1b5673]/20"
+            placeholder="Filter tasks…"
+            bind:value={query}
+          />
+          <div class="flex gap-2">
+            <button
+              on:click={() => (showDialog = true)}
+              class="rounded-lg bg-[#1b5673] text-white px-4 py-2 text-sm font-medium shadow-sm hover:brightness-95 active:translate-y-px transition"
+            >
+              New Task
+            </button>
+            <button
+              on:click={exportAllCSV}
+              class="rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-medium text-[#1b5673] hover:bg-white/80 active:translate-y-px transition"
+              title="Export all items as CSV"
+            >
+              Export All CSV
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 pb-10">
+  <main class="max-w-6xl mx-auto px-4 pb-12">
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {#each $lanes as lane, i}
         <Lane {lane} laneIndex={i} filter={query} onDrop={drop} onDragStart={dragStart} onRemove={removeTask} />
@@ -175,7 +181,7 @@
     </section>
   </main>
 
-  <footer class="border-t border-black/10 py-4 text-center text-sm text-[#1b5673]">
+  <footer class="border-t border-black/10 py-4 text-center text-sm text-[#1b5673] bg-white/60">
     Country: <span class="font-medium">{userCountry}</span>
   </footer>
 </div>

@@ -26,10 +26,12 @@
 </script>
 
 <div class="space-y-2">
-  <div class="rounded border border-black/10 bg-white">
+  <!-- Lane-Card mit sanfterem Shadow -->
+  <div class="rounded-2xl border border-black/10 bg-white shadow-sm overflow-hidden">
     <div class="sticky top-0 z-10 px-3 py-2 border-b border-black/10 flex items-center justify-between bg-white/85 backdrop-blur">
-      <h2 class="text-xs font-semibold uppercase text-[#1b5673]">{lane.title}</h2>
-      <span class="text-[11px] text-[#1b5673] bg-[#90D5FF]/40 border border-black/10 rounded px-2 py-0.5">
+      <h2 class="text-xs font-semibold uppercase tracking-wide text-[#1b5673]">{lane.title}</h2>
+      <!-- Punkt-Badge als Pill -->
+      <span class="text-[11px] text-[#1b5673] bg-[#90D5FF]/40 border border-black/10 rounded-full px-2 py-0.5">
         {totalPoints}
       </span>
     </div>
@@ -49,7 +51,8 @@
 
       <div class="space-y-2">
         {#each lane.tasks.filter((t) => matchesText(t, filter)) as task (task.id)}
-          <div class={isOverdue(task) ? "ring-1 ring-rose-400/60 rounded" : ""}>
+          <!-- Overdue: subtiler Akzent (linke Leiste + feiner Ring) -->
+          <div class={isOverdue(task) ? "rounded-lg ring-1 ring-rose-300/60 border-l-4 border-l-rose-300" : ""}>
             <TaskCard role="listitem" {task} {laneIndex} {onDragStart} onRemove={onRemove} />
           </div>
         {/each}
