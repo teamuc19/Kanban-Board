@@ -1,38 +1,35 @@
-# sv
+# Kanban Board (Svelte)
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A clean, lightweight Kanban board built with Svelte. Tasks are persisted locally, can be shared via the Web Share API, exported as **ICS** (per task) and **CSV** (all tasks), and the app is installable as a **PWA**. Dates are rendered with `date-fns`; overdue items are highlighted; moving a task to **DONE** triggers a browser notification.
 
-## Creating a project
+---
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Features
 
-```sh
-# create a new project in the current directory
-npx sv create
+- **Local persistence** – All lanes and tasks (including their current lane) are saved to `localStorage`.
+- **Task actions**
+  - **Share** a single task (Web Share API, with clipboard fallback).
+  - **Export ICS** for a single task (all-day event on its due date).
+  - **Export All CSV** for all tasks across all lanes.
+- **Friendly dates** – Absolute + relative time via `date-fns` (e.g., `21.10.2025 (in 3 Tagen)`).
+- **Overdue warning** – Tasks past their due date get a visible warning ring.
+- **Story Points per lane** – Lane header shows the sum of story points.
+- **DONE → Notification** – Dropping a task into **DONE** fires a native notification.
+- **User country** – Determined via Geo-API and displayed in the footer.
+- **PWA** – App manifest + service worker; installable on desktop and mobile.
 
-# create a new project in my-app
-npx sv create my-app
-```
+---
 
-## Developing
+##  Tech Stack
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+- **Svelte** (via [`sv`](https://github.com/sveltejs/cli))
+- **date-fns** for date formatting
+- Utility-class styling in markup
+- **Service Worker** + **Web App Manifest** for PWA
 
-```sh
-npm run dev
+---
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+##Getting Started
 
-## Building
+###Install
 
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
